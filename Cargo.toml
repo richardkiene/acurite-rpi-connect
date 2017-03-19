@@ -1,0 +1,6 @@
+[package]
+name = "acurite-rpi-connect"
+version = "0.1.0"
+authors = ["Richard Kiene <richard.kiene@gmail.com>"]
+
+[dependencies]
