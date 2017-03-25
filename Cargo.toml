@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Richard Kiene <richard.kiene@gmail.com>"]
 
 [dependencies]
+libusb = { path = "../libusb-rs" }
