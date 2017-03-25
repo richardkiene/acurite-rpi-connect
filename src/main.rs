@@ -1,8 +1,8 @@
 extern crate libusb;
 
 use std::slice;
-use std::str::FromStr;
 use std::time::Duration;
+use std::thread;
 
 #[derive(Debug)]
 struct Endpoint {
@@ -12,9 +12,14 @@ struct Endpoint {
     address: u8
 }
 
-static LIBUSB_REQUEST_TYPE_CLASS: u8  = (0x01 << 5);
+static LIBUSB_REQUEST_TYPE_CLASS: u8 = (0x01 << 5);
 static LIBUSB_RECIPIENT_INTERFACE: u8 = 0x01;
 static LIBUSB_ENDPOINT_IN: u8 = 0x80;
+static REPORT_ONE: u16 = 0x01;
+static REPORT_TWO: u16 = 0x02;
+static READ_REQUEST: u8 = 0x01;
+static READ_VALUE: u16 = 0x0100;
+static READ_INDEX: u16 = 0x00;
 
 fn main() {
     let vid: u16 = 9408;
@@ -124,18 +129,50 @@ fn read_endpoint(handle: &mut libusb::DeviceHandle, endpoint: Endpoint) {
             let mut buf = unsafe { slice::from_raw_parts_mut((&mut vec[..]).as_mut_ptr(), vec.capacity()) };
 
             let timeout = Duration::from_secs(30);
-            match handle.read_control(
-                LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_IN,
-                0x01,
-                0x0100+1,
-                0,
-                buf,
-                timeout) {
-                Ok(len) => {
-                    unsafe { vec.set_len(len) };
-                    println!(" - read: {:?}", vec);
-                },
-                Err(err) => println!("could not read from endpoint: {}", err)
+            let mut counter: u64 = 0;
+            loop {
+                thread::sleep(Duration::from_millis(1000));
+                
+                /* Fetch REPORT_ONE */
+                if counter % 10 == 0 {
+                    match handle.read_control(
+                        LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_IN,
+                        0x01,
+                        0x0100 + REPORT_ONE,
+                        0,
+                        buf,
+                        timeout) {
+                        Ok(len) => {
+                            unsafe { vec.set_len(len) };
+                            println!(" - read: {:?}", vec);
+                        },
+                        Err(err) => println!("could not read from endpoint: {}", err)
+                    }
+                }
+
+                /* FETCH REPORT TWO */
+                if counter % 30 == 0 {
+                    match handle.read_control(
+                        LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_IN,
+                        READ_REQUEST,
+                        READ_VALUE + REPORT_TWO,
+                        READ_INDEX,
+                        buf,
+                        timeout) {
+                        Ok(len) => {
+                            unsafe { vec.set_len(len) };
+                            println!(" - read: {:?}", vec);
+                        },
+                        Err(err) => println!("could not read from endpoint: {}", err)
+                    }
+                }
+
+                /* Show latest data */
+                if counter % 15 == 0 {
+                    println!("TODO: Output buffer here");
+                }
+
+                counter = counter + 1;
             }
         },
         Err(err) => println!("could not configure endpoint: {}", err)
