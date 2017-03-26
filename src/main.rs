@@ -144,13 +144,28 @@ fn read_endpoint(handle: &mut libusb::DeviceHandle, endpoint: Endpoint) {
                         timeout) {
                         Ok(len) => {
                             unsafe { vec.set_len(len) };
-                            println!(" - read: {:?}", vec);
+
+                            if (vec[3] & 0x0f) == 1 {
+                                let wind_speed: f32 = (((vec[4] & 0x1f) << 3) | ((vec[5] & 0x70) >> 7)) as f32 * 0.62;
+                                let wind_dir: u8 = vec[5] & 0x0f;
+                                let rain_count: u8 = vec[7] & 0x7f;
+
+                                println!("wind speed: {:?} wind dir: {:?} rain count: {:?}", wind_speed, wind_dir, rain_count);
+                            }
+
+                            if (vec[3] & 0x0f) == 8 {
+                                let wind_speed: f32 = (((vec[4] & 0x1f) << 3) | ((vec[5] & 0x70) >> 7)) as f32 * 0.62;
+                                let temp: f32 = ((((vec[5] & 0x0f) >> 7) | (vec[6] & 0x7f)) as f32 - 400.00) / 10.0;
+                                let humidity: u8 = vec[7] & 0x7f;
+
+                                println!("wind speed: {:?} temp: {:?} humidity: {:?}", wind_speed, temp, humidity);
+                            }
                         },
                         Err(err) => println!("could not read from endpoint: {}", err)
                     }
                 }
 
-                /* FETCH REPORT TWO */
+                /* Fetch REPORT_TWO */
                 if counter % 30 == 0 {
                     match handle.read_control(
                         LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_IN,
@@ -161,16 +176,16 @@ fn read_endpoint(handle: &mut libusb::DeviceHandle, endpoint: Endpoint) {
                         timeout) {
                         Ok(len) => {
                             unsafe { vec.set_len(len) };
-                            println!(" - read: {:?}", vec);
+                            /*println!(" - read: {:?}", vec); */
                         },
                         Err(err) => println!("could not read from endpoint: {}", err)
                     }
                 }
 
-                /* Show latest data */
+                /* Show latest data
                 if counter % 15 == 0 {
                     println!("TODO: Output buffer here");
-                }
+                } */
 
                 counter = counter + 1;
             }
